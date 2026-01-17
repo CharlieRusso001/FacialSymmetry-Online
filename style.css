@@ -243,10 +243,16 @@ header h1 {
 #resultCanvas {
     display: block;
     max-width: 100%;
+    width: 100%;
     height: auto;
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: center center;
     will-change: transform;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .zoom-controls {
@@ -632,11 +638,21 @@ footer p:last-child {
     .canvas-wrapper {
         margin: 20px -20px;
         width: calc(100% + 40px);
+        overflow: visible;
     }
 
     .canvas-container {
         border-radius: 0;
         width: 100%;
+        overflow: visible;
+    }
+
+    #resultCanvas {
+        width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        visibility: visible !important;
+        max-width: 100% !important;
     }
 
     .zoom-controls {

@@ -374,13 +374,28 @@ function getTouchCenter(touches) {
 function drawCanvas(canvas, showDotsFlag) {
     if (!originalImage || !scoreData) return;
     
-    canvas.width = originalImage.width;
-    canvas.height = originalImage.height;
+    // Get device pixel ratio for high DPI displays (especially mobile)
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Calculate display size
+    const displayWidth = originalImage.width;
+    const displayHeight = originalImage.height;
+    
+    // Set actual canvas size accounting for device pixel ratio
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    
+    // Set display size (CSS pixels)
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
     
     const ctx = canvas.getContext('2d');
     
+    // Scale context to account for device pixel ratio
+    ctx.scale(dpr, dpr);
+    
     // Draw original image
-    ctx.drawImage(originalImage, 0, 0);
+    ctx.drawImage(originalImage, 0, 0, displayWidth, displayHeight);
     
     // Draw midline
     ctx.strokeStyle = '#1d1d1f';
@@ -389,7 +404,7 @@ function drawCanvas(canvas, showDotsFlag) {
     ctx.globalAlpha = 0.6;
     ctx.beginPath();
     ctx.moveTo(scoreData.midlineX, 0);
-    ctx.lineTo(scoreData.midlineX, originalImage.height);
+    ctx.lineTo(scoreData.midlineX, displayHeight);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
@@ -405,6 +420,12 @@ function drawCanvas(canvas, showDotsFlag) {
             'mouth': '#95e1d3'
         };
         
+        // Determine dot size based on screen size (larger on mobile for visibility)
+        const isMobile = window.innerWidth <= 768;
+        const dotSize = isMobile ? 4 : 3;
+        const keyDotSize = isMobile ? 6 : 5;
+        const smallDotSize = isMobile ? 3.5 : 2.5;
+        
         // Draw lines connecting symmetric pairs
         scoreData.symmetricPairs.forEach(pair => {
             const leftPoint = positions[pair.left];
@@ -413,7 +434,7 @@ function drawCanvas(canvas, showDotsFlag) {
             
             // Draw line connecting symmetric points
             ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
+            ctx.lineWidth = isMobile ? 1.5 : 1;
             ctx.globalAlpha = 0.4;
             ctx.beginPath();
             ctx.moveTo(leftPoint.x, leftPoint.y);
@@ -431,13 +452,13 @@ function drawCanvas(canvas, showDotsFlag) {
             // Draw left point
             const leftPoint = positions[pair.left];
             ctx.beginPath();
-            ctx.arc(leftPoint.x, leftPoint.y, 3, 0, 2 * Math.PI);
+            ctx.arc(leftPoint.x, leftPoint.y, dotSize, 0, 2 * Math.PI);
             ctx.fill();
             
             // Draw right point
             const rightPoint = positions[pair.right];
             ctx.beginPath();
-            ctx.arc(rightPoint.x, rightPoint.y, 3, 0, 2 * Math.PI);
+            ctx.arc(rightPoint.x, rightPoint.y, dotSize, 0, 2 * Math.PI);
             ctx.fill();
         });
         
@@ -452,7 +473,7 @@ function drawCanvas(canvas, showDotsFlag) {
         positions.forEach((point, index) => {
             if (!allIndices.has(index)) {
                 ctx.beginPath();
-                ctx.arc(point.x, point.y, 2.5, 0, 2 * Math.PI);
+                ctx.arc(point.x, point.y, smallDotSize, 0, 2 * Math.PI);
                 ctx.fill();
             }
         });
@@ -470,7 +491,7 @@ function drawCanvas(canvas, showDotsFlag) {
             const point = positions[index];
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+            ctx.arc(point.x, point.y, keyDotSize, 0, 2 * Math.PI);
             ctx.fill();
         });
     }
