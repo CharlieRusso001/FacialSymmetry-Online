@@ -300,14 +300,22 @@ function calculateSymmetryScore(landmarks, imgWidth, imgHeight) {
     };
 }
 
-// Apply zoom and pan transformations
+// Apply zoom and pan transformations with smooth animation
+let transformAnimationFrame = null;
 function applyTransform() {
-    resultCanvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
-    if (zoomLevel > 1 || panX !== 0 || panY !== 0) {
-        canvasContainer.classList.add('zoomed');
-    } else {
-        canvasContainer.classList.remove('zoomed');
+    if (transformAnimationFrame) {
+        cancelAnimationFrame(transformAnimationFrame);
     }
+    
+    transformAnimationFrame = requestAnimationFrame(() => {
+        resultCanvas.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoomLevel})`;
+        resultCanvas.style.transition = 'none'; // Disable transition during dragging
+        if (zoomLevel > 1 || panX !== 0 || panY !== 0) {
+            canvasContainer.classList.add('zoomed');
+        } else {
+            canvasContainer.classList.remove('zoomed');
+        }
+    });
 }
 
 // Zoom functions
@@ -375,7 +383,7 @@ function drawCanvas(canvas, showDotsFlag) {
     if (!originalImage || !scoreData) return;
     
     // Get device pixel ratio for high DPI displays (especially mobile)
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2 for iOS compatibility
     
     // Calculate display size
     const displayWidth = originalImage.width;
@@ -389,19 +397,37 @@ function drawCanvas(canvas, showDotsFlag) {
     canvas.style.width = displayWidth + 'px';
     canvas.style.height = displayHeight + 'px';
     
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { 
+        alpha: false, // Better performance on iOS
+        willReadFrequently: false 
+    });
+    
+    // Clear canvas first (important for iOS)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Scale context to account for device pixel ratio
     ctx.scale(dpr, dpr);
     
-    // Draw original image
-    ctx.drawImage(originalImage, 0, 0, displayWidth, displayHeight);
+    // Enable image smoothing for better quality
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     
-    // Draw midline
+    // Draw original image - ensure it's fully loaded
+    if (originalImage.complete) {
+        ctx.drawImage(originalImage, 0, 0, displayWidth, displayHeight);
+    } else {
+        // Wait for image to load
+        originalImage.onload = () => {
+            drawCanvas(canvas, showDotsFlag);
+        };
+        return;
+    }
+    
+    // Draw midline with thicker line for visibility on iOS
     ctx.strokeStyle = '#1d1d1f';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.setLineDash([5, 5]);
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = 0.7;
     ctx.beginPath();
     ctx.moveTo(scoreData.midlineX, 0);
     ctx.lineTo(scoreData.midlineX, displayHeight);
@@ -511,8 +537,14 @@ function displayResults(img, landmarks, scoreDataResult) {
     fsPanX = 0;
     fsPanY = 0;
     
-    // Draw main canvas
-    drawCanvas(resultCanvas, showDots);
+    // Draw main canvas - use setTimeout to ensure image is fully rendered on iOS
+    setTimeout(() => {
+        drawCanvas(resultCanvas, showDots);
+        // Force a repaint on iOS
+        resultCanvas.style.display = 'none';
+        resultCanvas.offsetHeight; // Trigger reflow
+        resultCanvas.style.display = 'block';
+    }, 50);
     
     // Apply initial transform
     applyTransform();
@@ -616,35 +648,54 @@ canvasContainer.addEventListener('mouseleave', () => {
     }
 });
 
-// Touch events for mobile
+// Touch events for mobile with smooth handling
 let lastTouches = [];
+let touchStartTime = 0;
+let isPinching = false;
 
 canvasContainer.addEventListener('touchstart', (e) => {
+    touchStartTime = Date.now();
+    
     if (e.touches.length === 1) {
         // Single touch - pan
         const touch = e.touches[0];
         startX = touch.clientX - panX;
         startY = touch.clientY - panY;
         isDragging = true;
+        isPinching = false;
     } else if (e.touches.length === 2) {
         // Two touches - pinch zoom
         isDragging = false;
+        isPinching = true;
         lastTouchDistance = getTouchDistance(e.touches);
         lastTouches = Array.from(e.touches);
+        
+        // Store initial pan position for pinch center calculation
+        const center = getTouchCenter(e.touches);
+        const rect = canvasContainer.getBoundingClientRect();
+        startX = center.x - rect.left;
+        startY = center.y - rect.top;
     }
 }, { passive: false });
 
 canvasContainer.addEventListener('touchmove', (e) => {
     e.preventDefault();
     
-    if (e.touches.length === 1 && isDragging) {
-        // Single touch - pan
+    if (e.touches.length === 1 && isDragging && !isPinching) {
+        // Single touch - pan with smooth updates
         const touch = e.touches[0];
-        panX = touch.clientX - startX;
-        panY = touch.clientY - startY;
-        applyTransform();
-    } else if (e.touches.length === 2) {
-        // Two touches - pinch zoom
+        const newPanX = touch.clientX - startX;
+        const newPanY = touch.clientY - startY;
+        
+        // Smooth interpolation for better feel
+        panX = newPanX;
+        panY = newPanY;
+        
+        requestAnimationFrame(() => {
+            applyTransform();
+        });
+    } else if (e.touches.length === 2 && isPinching) {
+        // Two touches - pinch zoom with smooth updates
         isDragging = false;
         const currentDistance = getTouchDistance(e.touches);
         const center = getTouchCenter(e.touches);
@@ -659,6 +710,7 @@ canvasContainer.addEventListener('touchmove', (e) => {
             
             if (zoomLevel > 1) {
                 const zoomChange = zoomLevel / zoomBefore;
+                // Smooth zoom centering
                 panX = centerX - (centerX - panX) * zoomChange;
                 panY = centerY - (centerY - panY) * zoomChange;
             } else {
@@ -666,17 +718,34 @@ canvasContainer.addEventListener('touchmove', (e) => {
                 panY = 0;
             }
             
-            applyTransform();
+            requestAnimationFrame(() => {
+                applyTransform();
+            });
         }
         
         lastTouchDistance = currentDistance;
     }
 }, { passive: false });
 
-canvasContainer.addEventListener('touchend', () => {
+canvasContainer.addEventListener('touchend', (e) => {
+    // Re-enable smooth transitions after touch ends
+    if (transformAnimationFrame) {
+        cancelAnimationFrame(transformAnimationFrame);
+    }
+    resultCanvas.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+    
     isDragging = false;
+    isPinching = false;
     lastTouchDistance = 0;
     lastTouches = [];
+    
+    // If touch ended but we still have touches, continue handling
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        startX = touch.clientX - panX;
+        startY = touch.clientY - panY;
+        isDragging = true;
+    }
 });
 
 // Prevent zoom buttons from triggering canvas interactions
@@ -713,9 +782,15 @@ function openFullscreen() {
     fsPanX = 0;
     fsPanY = 0;
     
-    // Draw fullscreen canvas
-    drawCanvas(fullscreenCanvas, showDots);
-    applyFullscreenTransform();
+    // Draw fullscreen canvas - use setTimeout to ensure image is fully rendered on iOS
+    setTimeout(() => {
+        drawCanvas(fullscreenCanvas, showDots);
+        // Force a repaint on iOS
+        fullscreenCanvas.style.display = 'none';
+        fullscreenCanvas.offsetHeight; // Trigger reflow
+        fullscreenCanvas.style.display = 'block';
+        applyFullscreenTransform();
+    }, 50);
 }
 
 function closeFullscreen() {
@@ -723,9 +798,17 @@ function closeFullscreen() {
     document.body.style.overflow = '';
 }
 
-// Apply fullscreen transform
+// Apply fullscreen transform with smooth animation
+let fsTransformAnimationFrame = null;
 function applyFullscreenTransform() {
-    fullscreenCanvas.style.transform = `translate(${fsPanX}px, ${fsPanY}px) scale(${fsZoomLevel})`;
+    if (fsTransformAnimationFrame) {
+        cancelAnimationFrame(fsTransformAnimationFrame);
+    }
+    
+    fsTransformAnimationFrame = requestAnimationFrame(() => {
+        fullscreenCanvas.style.transform = `translate3d(${fsPanX}px, ${fsPanY}px, 0) scale(${fsZoomLevel})`;
+        fullscreenCanvas.style.transition = 'none'; // Disable transition during dragging
+    });
 }
 
 // Fullscreen zoom functions
@@ -856,8 +939,9 @@ fullscreenCanvasContainer.addEventListener('mouseup', () => {
     }
 });
 
-// Fullscreen touch events
+// Fullscreen touch events with smooth handling
 let fsLastTouches = [];
+let fsIsPinching = false;
 
 fullscreenCanvasContainer.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
@@ -865,22 +949,32 @@ fullscreenCanvasContainer.addEventListener('touchstart', (e) => {
         fsStartX = touch.clientX - fsPanX;
         fsStartY = touch.clientY - fsPanY;
         fsIsDragging = true;
+        fsIsPinching = false;
     } else if (e.touches.length === 2) {
         fsIsDragging = false;
+        fsIsPinching = true;
         fsLastTouchDistance = getTouchDistance(e.touches);
         fsLastTouches = Array.from(e.touches);
+        
+        const center = getTouchCenter(e.touches);
+        const rect = fullscreenCanvasContainer.getBoundingClientRect();
+        fsStartX = center.x - rect.left;
+        fsStartY = center.y - rect.top;
     }
 }, { passive: false });
 
 fullscreenCanvasContainer.addEventListener('touchmove', (e) => {
     e.preventDefault();
     
-    if (e.touches.length === 1 && fsIsDragging) {
+    if (e.touches.length === 1 && fsIsDragging && !fsIsPinching) {
         const touch = e.touches[0];
         fsPanX = touch.clientX - fsStartX;
         fsPanY = touch.clientY - fsStartY;
-        applyFullscreenTransform();
-    } else if (e.touches.length === 2) {
+        
+        requestAnimationFrame(() => {
+            applyFullscreenTransform();
+        });
+    } else if (e.touches.length === 2 && fsIsPinching) {
         fsIsDragging = false;
         const currentDistance = getTouchDistance(e.touches);
         const center = getTouchCenter(e.touches);
@@ -902,17 +996,33 @@ fullscreenCanvasContainer.addEventListener('touchmove', (e) => {
                 fsPanY = 0;
             }
             
-            applyFullscreenTransform();
+            requestAnimationFrame(() => {
+                applyFullscreenTransform();
+            });
         }
         
         fsLastTouchDistance = currentDistance;
     }
 }, { passive: false });
 
-fullscreenCanvasContainer.addEventListener('touchend', () => {
+fullscreenCanvasContainer.addEventListener('touchend', (e) => {
+    // Re-enable smooth transitions after touch ends
+    if (fsTransformAnimationFrame) {
+        cancelAnimationFrame(fsTransformAnimationFrame);
+    }
+    fullscreenCanvas.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+    
     fsIsDragging = false;
+    fsIsPinching = false;
     fsLastTouchDistance = 0;
     fsLastTouches = [];
+    
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        fsStartX = touch.clientX - fsPanX;
+        fsStartY = touch.clientY - fsPanY;
+        fsIsDragging = true;
+    }
 });
 
 // Reset button handler

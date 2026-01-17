@@ -248,11 +248,13 @@ header h1 {
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: center center;
     will-change: transform;
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
+    -webkit-transform: translateZ(0); /* Force hardware acceleration on iOS */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 .zoom-controls {
