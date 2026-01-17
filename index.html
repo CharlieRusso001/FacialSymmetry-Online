@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Symmetry Analyzer</title>
+    
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:title" content="Face Symmetry Analyzer">
+    <meta property="og:description" content="Analyze facial symmetry from uploaded photos. All processing happens locally in your browser - no images uploaded or stored.">
+    <meta property="og:image" content="test.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:type" content="website">
+    <!-- Update og:url with your actual URL when deployed (e.g., https://username.github.io/FacialSymmetry-Online/) -->
+    <meta property="og:url" content="">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Face Symmetry Analyzer">
+    <meta name="twitter:description" content="Analyze facial symmetry from uploaded photos. All processing happens locally in your browser.">
+    <meta name="twitter:image" content="test.png">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Face Symmetry Analyzer</h1>
+            <p class="subtitle">Upload a photo to analyze facial symmetry</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/png" hidden>
+                    <div class="upload-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>Click to upload or drag and drop</p>
+                        <p class="file-types">JPG or PNG</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <div class="score-display">
+                    <div class="score-value" id="scoreValue">--</div>
+                    <div class="score-label" id="scoreLabel">Symmetry Score</div>
+                </div>
+                <div class="canvas-wrapper">
+                    <div class="canvas-container" id="canvasContainer">
+                        <canvas id="resultCanvas"></canvas>
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="zoomInBtn" title="Zoom In">+</button>
+                            <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">−</button>
+                            <button class="zoom-btn" id="zoomResetBtn" title="Reset Zoom">⌂</button>
+                        </div>
+                        <div class="canvas-actions">
+                            <button class="action-btn" id="fullscreenBtn" title="Open Fullscreen">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                                </svg>
+                            </button>
+                            <button class="action-btn" id="toggleDotsBtn" title="Toggle Landmarks">●</button>
+                        </div>
+                        <div class="zoom-hint">Pinch to zoom • Drag to pan</div>
+                    </div>
+                </div>
+                <button class="reset-btn" id="resetBtn">Analyze Another Photo</button>
+            </div>
+
+            <!-- Fullscreen Modal -->
+            <div class="fullscreen-modal" id="fullscreenModal" style="display: none;">
+                <div class="fullscreen-header">
+                    <button class="close-btn" id="closeFullscreenBtn" title="Close">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="fullscreen-controls">
+                        <button class="control-btn" id="fsToggleDotsBtn" title="Toggle Landmarks">●</button>
+                        <button class="control-btn" id="fsZoomInBtn" title="Zoom In">+</button>
+                        <button class="control-btn" id="fsZoomOutBtn" title="Zoom Out">−</button>
+                        <button class="control-btn" id="fsZoomResetBtn" title="Reset Zoom">⌂</button>
+                    </div>
+                </div>
+                <div class="fullscreen-content">
+                    <div class="fullscreen-canvas-container" id="fullscreenCanvasContainer">
+                        <canvas id="fullscreenCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading" id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Analyzing face...</p>
+            </div>
+        </main>
+
+        <footer>
+            <p>All processing happens locally in your browser. No images are uploaded or stored.</p>
+            <p>This was made for someone that was concerned about their facial symmetry after getting chemo shots injected into their eye. This can be inaccurate please use straight on images of your face and do not take end results too seriously.</p>
+        </footer>
+    </div>
+
+    <!-- face-api.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
