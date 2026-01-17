@@ -12,16 +12,6 @@ A lightweight web application that analyzes facial symmetry from uploaded photos
 - **Visual Overlay**: Displays midline and landmark points to show how the score was calculated
 - **Privacy-First**: All processing happens client-side - no server, no storage
 
-## How to Use
-
-1. Open `index.html` in a modern web browser (Chrome, Firefox, Edge, Safari)
-   - **Quick test:** Double-click `index.html` to open it
-   - **Recommended:** Use a local server (see [TESTING.md](TESTING.md) for details)
-2. Click the upload area or drag and drop a face photo
-3. Wait for the analysis (usually takes 2-5 seconds)
-4. View your symmetry score and visual overlay
-5. Click "Analyze Another Photo" to try again
-
 For detailed testing instructions, see [TESTING.md](TESTING.md).
 
 ## Technical Details
